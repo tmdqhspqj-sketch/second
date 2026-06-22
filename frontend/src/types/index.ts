@@ -15,7 +15,7 @@ export interface ChatResponse {
 export interface HealthResponse {
   status: string;
   ollama: boolean;
-  chroma: boolean;
+  database: boolean;
   ollama_url: string;
 }
 

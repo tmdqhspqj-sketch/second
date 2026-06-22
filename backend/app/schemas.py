@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 class HealthResponse(BaseModel):
     status: str
     ollama: bool
-    chroma: bool
+    database: bool
     ollama_url: str
 
 

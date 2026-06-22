@@ -30,9 +30,11 @@ export default function ChatApp() {
           fetchPersonas(),
         ]);
         setHealth(
-          healthRes.ollama
-            ? "Ollama 연결됨"
-            : "Ollama 미연결 — ollama serve 확인",
+          healthRes.ollama && healthRes.database
+            ? "Ollama + Supabase 연결됨"
+            : healthRes.ollama
+              ? "Ollama 연결됨 · Supabase 미연결 (DATABASE_URL 확인)"
+              : "Ollama 미연결 — ollama serve 확인",
         );
         setPersonas(personaList);
         if (personaList.length > 0) {

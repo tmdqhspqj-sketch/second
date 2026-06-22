@@ -1,17 +1,16 @@
+import json
 from pathlib import Path
 
+import psycopg
 from langchain_community.document_loaders import TextLoader
-from langchain_community.vectorstores import Chroma
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
+from pgvector.psycopg import register_vector
 
 from app.config import settings
 from app.services.persona_service import Persona
-
-
-COLLECTION_NAME = "documents"
 
 
 def _get_embeddings() -> OllamaEmbeddings:
@@ -21,17 +20,21 @@ def _get_embeddings() -> OllamaEmbeddings:
     )
 
 
-def _get_vectorstore() -> Chroma:
-    return Chroma(
-        collection_name=COLLECTION_NAME,
-        embedding_function=_get_embeddings(),
-        persist_directory=str(settings.chroma_dir),
-    )
+def _require_database_url() -> str:
+    if not settings.database_url:
+        raise RuntimeError(
+            "DATABASE_URL is not set. Add your Supabase Postgres URL to backend/.env"
+        )
+    return settings.database_url
 
 
-def check_chroma() -> bool:
+def check_database() -> bool:
+    if not settings.database_url:
+        return False
     try:
-        _get_vectorstore()
+        with psycopg.connect(settings.database_url) as conn:
+            with conn.cursor() as cur:
+                cur.execute("select 1")
         return True
     except Exception:
         return False
@@ -59,24 +62,53 @@ def index_file(file_path: Path) -> int:
     if not chunks:
         return 0
 
-    vectorstore = _get_vectorstore()
-    vectorstore.add_documents(chunks)
+    embeddings = _get_embeddings()
+    texts = [chunk.page_content for chunk in chunks]
+    vectors = embeddings.embed_documents(texts)
+
+    with psycopg.connect(_require_database_url()) as conn:
+        register_vector(conn)
+        with conn.cursor() as cur:
+            for chunk, vector in zip(chunks, vectors):
+                cur.execute(
+                    """
+                    insert into public.document_chunks (content, metadata, embedding)
+                    values (%s, %s::jsonb, %s)
+                    """,
+                    (chunk.page_content, json.dumps(chunk.metadata), vector),
+                )
+        conn.commit()
+
     return len(chunks)
 
 
 def retrieve_context(query: str) -> tuple[str, list[str]]:
-    vectorstore = _get_vectorstore()
-    results = vectorstore.similarity_search(query, k=settings.top_k)
+    embeddings = _get_embeddings()
+    query_vector = embeddings.embed_query(query)
 
-    if not results:
+    with psycopg.connect(_require_database_url()) as conn:
+        register_vector(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select content, metadata->>'source' as source
+                from public.document_chunks
+                order by embedding <=> %s
+                limit %s
+                """,
+                (query_vector, settings.top_k),
+            )
+            rows = cur.fetchall()
+
+    if not rows:
         return "", []
 
     context_parts: list[str] = []
     sources: list[str] = []
-    for index, doc in enumerate(results, start=1):
-        source = doc.metadata.get("source", "unknown")
-        sources.append(source)
-        context_parts.append(f"[{index}] ({source})\n{doc.page_content}")
+    for index, (content, source) in enumerate(rows, start=1):
+        source_name = source or "unknown"
+        sources.append(source_name)
+        context_parts.append(f"[{index}] ({source_name})\n{content}")
 
     return "\n\n".join(context_parts), list(dict.fromkeys(sources))
 

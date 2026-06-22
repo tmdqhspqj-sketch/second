@@ -12,15 +12,22 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     default_llm_model: str = "local-agent:latest"
     embedding_model: str = "embeddinggemma:latest"
+    embedding_dimensions: int = 768
     chunk_size: int = 800
     chunk_overlap: int = 150
     top_k: int = 4
+
+    database_url: str = ""
+    supabase_url: str = "https://oglrabxukdfirjuneogx.supabase.co"
 
     personas_dir: Path = ROOT_DIR / "personas"
     chroma_dir: Path = ROOT_DIR / "backend" / "data" / "chroma"
     upload_dir: Path = ROOT_DIR / "backend" / "data" / "uploads"
 
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "https://*.vercel.app",
+    ]
 
 
 settings = Settings()
