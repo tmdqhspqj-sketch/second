@@ -5,9 +5,7 @@
 | 항목 | URL |
 |------|-----|
 | GitHub | https://github.com/tmdqhspqj-sketch/second |
-| Vercel 대시보드 | https://vercel.com/hong-seung-bo-s-projects/second |
-
-Vercel 프로젝트는 생성되어 있지만, **Git 저장소가 아직 연결되지 않은 상태**입니다.
+| Vercel 배포 URL | https://second-jalspejz3-hong-seung-bo-s-projects.vercel.app |
 
 ---
 
@@ -56,9 +54,11 @@ git push -u origin main
 
    | Name | Value | Environment |
    |------|-------|-------------|
-   | `NEXT_PUBLIC_API_URL` | `http://localhost:8000` (임시) | Production, Preview, Development |
+   | `NEXT_PUBLIC_API_URL` | 백엔드 공개 URL (아래 참고) | Production, Preview, Development |
+   | `NEXT_PUBLIC_SUPABASE_URL` | `https://oglrabxukdfirjuneogx.supabase.co` | Production, Preview, Development |
 
-   > 백엔드를 공개 URL(ngrok/Railway 등)로 배포한 뒤 이 값을 교체하세요.
+   > `NEXT_PUBLIC_API_URL`에 Vercel URL(`second-...vercel.app`)을 넣으면 **안 됩니다.**  
+   > 프론트(Vercel)가 호출할 **FastAPI 백엔드 주소**를 넣어야 합니다.
 
 6. **Deployments** → **Redeploy** (또는 main에 push하면 자동 배포)
 
